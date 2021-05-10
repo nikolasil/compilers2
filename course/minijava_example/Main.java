@@ -8,14 +8,6 @@ import java.util.*;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        SymbolTable ST = new SymbolTable();
-        ST_Class c1 = new ST_Class();
-        ST_Class c2 = new ST_Class();
-        ST.addClass("nik1", c1);
-        ST.addClass("nik2", c2);
-        System.out.println(ST.getClass("nik1"));
-        System.out.println(ST.getClass("nik2"));
-        System.out.println(ST.getClass("nik3"));
         // if (args.length != 1) {
         // System.err.println("Usage: java Main <inputFile>");
         // System.exit(1);
@@ -50,50 +42,213 @@ public class Main {
 class SymbolTable {
     Map<String, ST_Class> classes = new HashMap<String, ST_Class>();
 
-    ST_Class getClass(String className) {
-        if (classes.containsKey(className))
-            return classes.get(className);
+    int enter(String className, String classExtend) {
+        if (this.getClass(className) == null) {
+            if (classExtend == null) {
+                this.classes.put(className, new ST_Class(className, null));
+                return 0;
+            }
+            if (this.getClass(classExtend) == null) {
+                System.out.println(
+                        "Error in class: " + className + " -- extend class: " + classExtend + " not declared --");
+                return 1;
+            }
+            this.classes.put(className, new ST_Class(className, this.getClass(classExtend)));
+            return 2;
+        }
+        System.out.println("Error in class: " + className + " -- double declaration --");
+        return 3;
+    }
+
+    int insertAtribute(String className, String atrName, String atrType) {
+        if (this.getClass(className) != null) {
+            this.getClass(className).addAtribute(atrName, atrType);
+            return 0;
+        }
+        System.out.println("Error in class: " + className + " -- not declared --");
+        return 1;
+    }
+
+    int insertMethod(String className, String methName, String methType) {
+        if (this.getClass(className) != null) {
+            this.getClass(className).addMethod(methName, methType);
+            return 0;
+        }
+        System.out.println("Error in class: " + className + " -- not declared --");
+        return 1;
+    }
+
+    int insertArgumentToMethod(String className, String methName, String argName, String argType) {
+        if (this.getClass(className) != null) {
+            if (this.getClass(className).getMethod(methName) != null) {
+                this.getClass(className).getMethod(methName).addArgument(argName, argType);
+                return 0;
+            }
+            System.out.println("Error in class method: " + className + "." + methName + " -- not declared --");
+            return 1;
+        }
+        System.out.println("Error in class: " + className + " -- not declared --");
+        return 2;
+    }
+
+    int insertBodyVariableToMethod(String className, String methName, String varName, String varType) {
+        if (this.getClass(className) != null) {
+            if (this.getClass(className).getMethod(methName) != null) {
+                this.getClass(className).getMethod(methName).addArgument(varName, varType);
+                return 0;
+            }
+            System.out.println("Error in class method: " + className + "." + methName + " -- not declared --");
+            return 1;
+        }
+        System.out.println("Error in class: " + className + " -- not declared --");
+        return 2;
+    }
+
+    String lookupAtribute(String className, String atrName) {
+        if (this.getClass(className) != null) {
+            return this.getClass(className).getAtribute(atrName);
+        }
+        System.out.println("Error in class: " + className + " -- not declared --");
+        return "error";
+    }
+
+    ST_Method lookupMethod(String className, String methName) {
+        if (this.getClass(className) != null) {
+            return this.getClass(className).getMethod(methName);
+        }
+        System.out.println("Error in class: " + className + " -- not declared --");
         return null;
     }
 
-    void addClass(String className, ST_Class classst) {
-        classes.put(className, classst);
+    String lookupArgumentOfMethod(String className, String methName, String argName) {
+        if (this.getClass(className) != null) {
+            if (this.getClass(className).getMethod(methName) != null)
+                return this.getClass(className).getMethod(methName).getArgument(argName);
+            System.out.println("Error in class method: " + className + "." + methName + " -- not declared --");
+            return "error0";
+        }
+        System.out.println("Error in class: " + className + " -- not declared --");
+        return "error1";
+    }
+
+    String lookupBodyVariableOfMethod(String className, String methName, String varName) {
+        if (this.getClass(className) != null) {
+            if (this.getClass(className).getMethod(methName) != null)
+                return this.getClass(className).getMethod(methName).getBodyVariable(varName);
+            System.out.println("Error in class method: " + className + "." + methName + " -- not declared --");
+            return "error0";
+        }
+        System.out.println("Error in class: " + className + " -- not declared --");
+        return "error1";
+    }
+
+    ST_Class getClass(String className) {
+        if (this.classes.containsKey(className))
+            return this.classes.get(className);
+        return null;
     }
 }
 
 class ST_Class {
-    ST_Class(String name, String returnT, String e) {
-        className = name;
-        returnType = returnT;
-        classesExtends = e;
+    String name;
+    ST_Class extend;
+
+    Map<String, String> atributes = new HashMap<String, String>();
+    Map<String, ST_Method> methods = new HashMap<String, ST_Method>();
+
+    ST_Class(String n, ST_Class e) {
+        this.name = n;
+        this.extend = e;
     }
 
-    String className;
-    String returnType;
-    String classesExtends;
-    Map<String, String> variables = new HashMap<String, String>();
-    Map<String, ST_Method> methods = new HashMap<String, ST_Method>();
+    String getName() {
+        return this.name;
+    }
+
+    ST_Class getExtend() {
+        return this.extend;
+    }
+
+    String getAtribute(String name) {
+        if (this.atributes.containsKey(name))
+            return this.atributes.get(name);
+        return "";
+    }
+
+    ST_Method getMethod(String name) {
+        if (this.methods.containsKey(name))
+            return this.methods.get(name);
+        return null;
+    }
+
+    int addAtribute(String atrName, String atrType) {
+        if (this.getAtribute(atrName) == null) {
+            this.atributes.put(atrName, atrType);
+            return 0;
+        }
+        System.out.println("Error in class atribute: " + this.name + "." + atrName + " -- double declaration --");
+        return 1;
+    }
+
+    int addMethod(String methName, String methType) {
+        if (this.getMethod(methName) == null) {
+            this.methods.put(methName, new ST_Method(methName, methType));
+            return 0;
+        }
+        System.out.println("Error in class method: " + this.name + "." + methName + " -- double declaration --");
+        return 1;
+    }
 }
 
 class ST_Method {
-    String returnType;
+    String name;
+    String type;
+
     Map<String, String> arguments = new HashMap<String, String>();
     Map<String, String> bodyVariables = new HashMap<String, String>();
 
-    String findBodyVariable(String varName) {
-        if (bodyVariables.containsKey(varName))
-            return bodyVariables.get(varName);
+    ST_Method(String n, String t) {
+        this.name = n;
+        this.type = t;
+    }
+
+    String getName() {
+        return this.name;
+    }
+
+    String getType() {
+        return this.type;
+    }
+
+    String getArgument(String argName) {
+        if (this.arguments.containsKey(argName))
+            return this.arguments.get(argName);
         return "";
     }
 
-    String findArgument(String argName) {
-        if (arguments.containsKey(argName))
-            return arguments.get(argName);
+    String getBodyVariable(String varName) {
+        if (this.bodyVariables.containsKey(varName))
+            return this.bodyVariables.get(varName);
         return "";
     }
 
-    String getReturnType() {
-        return returnType;
+    int addArgument(String argName, String argType) {
+        if (this.getArgument(argName) == null) {
+            this.arguments.put(argName, argType);
+            return 0;
+        }
+        System.out.println("Error in method's arguments: " + this.name + "." + argName + " -- double declaration --");
+        return 1;
+    }
+
+    int addBodyVariable(String varName, String varType) {
+        if (this.getBodyVariable(varName) == null) {
+            this.bodyVariables.put(varName, varType);
+            return 0;
+        }
+        System.out.println(
+                "Error in method's bodyVariables : " + this.name + "." + varName + " -- double declaration --");
+        return 1;
     }
 }
 
