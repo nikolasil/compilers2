@@ -1,12 +1,33 @@
 class BinaryTree {
 	public static void main(String[] a) {
+		int nikola2;
 		System.out.println(new BT().Start());
+	}
+}
+
+class test2 {
+	int b;
+
+	public int meth(test a) {
+		int nikola2;
+		nikola2 = new Tree();
+		return 1;
+	}
+}
+
+class test extends test2 {
+	int b;
+
+	public int meth(test a) {
+		int nikola2;
+		nikola2 = new Tree();
+		return 1;
 	}
 }
 
 // This class invokes the methods to create a tree,
 // insert, delete and serach for elements on it
-class BT {
+class BT extends test {
 	int nikolas;
 	int nikola2;
 
