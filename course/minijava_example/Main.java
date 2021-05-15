@@ -22,10 +22,10 @@ public class Main {
 
             System.err.println("Program parsed successfully.");
 
-            MyVisitor eval = new MyVisitor();
-            // MyVisitor eval2 = new MyVisitor(true);
-            root.accept(eval, null);
-            // root.accept(eval2, null);
+            MyVisitor declarationST = new MyVisitor();
+            MyVisitor typeChecking = new MyVisitor();
+            root.accept(declarationST, null);
+            root.accept(typeChecking, null);
 
         } catch (ParseException ex) {
             System.out.println(ex.getMessage());
@@ -44,14 +44,10 @@ public class Main {
 
 class SymbolTable {
     Map<String, ST_Class> classes = new LinkedHashMap<String, ST_Class>();
-    int state = 0;
+    int state = 0; // 0 = fill table , 1 = type check
 
-    void makeState1() {
-        this.state = 1;
-    }
-
-    void makeState0() {
-        this.state = 0;
+    void setState(int s) {
+        this.state = s;
     }
 
     int getState() {
@@ -343,7 +339,7 @@ class MyVisitor extends GJDepthFirst<String, String> {
         n.f0.accept(this, argu);
         n.f1.accept(this, argu);
         n.f2.accept(this, argu);
-        ST.makeState1();
+        ST.setState(1);
         return null;
     }
 
@@ -355,36 +351,40 @@ class MyVisitor extends GJDepthFirst<String, String> {
      */
     @Override
     public String visit(MainClass n, String argu) throws Exception {
-        n.f0.accept(this, null); // "class"
-        String classname = n.f1.accept(this, null); // classname
-        n.f2.accept(this, null); // "{"
-        n.f3.accept(this, null); // "public"
-        n.f4.accept(this, null); // "static"
-        n.f5.accept(this, null); // "void"
-        n.f6.accept(this, null); // "main"
+        if (ST.getState() == 0) {
+            n.f0.accept(this, null); // "class"
+            String classname = n.f1.accept(this, null); // classname
+            n.f2.accept(this, null); // "{"
+            n.f3.accept(this, null); // "public"
+            n.f4.accept(this, null); // "static"
+            n.f5.accept(this, null); // "void"
+            n.f6.accept(this, null); // "main"
 
-        n.f7.accept(this, null); // "("
-        n.f8.accept(this, null); // "String"
-        n.f9.accept(this, null); // "["
-        n.f10.accept(this, null); // "]"
+            n.f7.accept(this, null); // "("
+            n.f8.accept(this, null); // "String"
+            n.f9.accept(this, null); // "["
+            n.f10.accept(this, null); // "]"
 
-        if (ST.enter(classname, null) != 0)
-            System.exit(1);
+            if (ST.enter(classname, null) != 0)
+                System.exit(1);
 
-        String argumentName = n.f11.accept(this, null); // argument name
+            String argumentName = n.f11.accept(this, null); // argument name
 
-        ST.insertMethod(classname, "main", "void"); // insert the main method
-        ST.insertArgumentToMethod(classname, "main", argumentName, "String[]");
-        // insert the argument to the main method
+            ST.insertMethod(classname, "main", "void"); // insert the main method
+            ST.insertArgumentToMethod(classname, "main", argumentName, "String[]");
+            // insert the argument to the main method
 
-        n.f12.accept(this, null); // ")"
-        n.f13.accept(this, null); // "{"
-        n.f14.accept(this, classname + "->main");
-        // visit VarDeclaration with className->method in order to know where this
-        // variable will the be
-        n.f15.accept(this, null); // Statements
-        n.f16.accept(this, null); // "}"
-        n.f17.accept(this, null); // "}"
+            n.f12.accept(this, null); // ")"
+            n.f13.accept(this, null); // "{"
+            n.f14.accept(this, classname + "->main");
+            // visit VarDeclaration with className->method in order to know where this
+            // variable will the be
+            n.f15.accept(this, null); // Statements
+            n.f16.accept(this, null); // "}"
+            n.f17.accept(this, null); // "}"
+        } else {
+            System.out.println("1");
+        }
         return null;
     }
 
@@ -394,18 +394,22 @@ class MyVisitor extends GJDepthFirst<String, String> {
      */
     @Override
     public String visit(ClassDeclaration n, String argu) throws Exception {
-        n.f0.accept(this, null); // "class"
-        String classname = n.f1.accept(this, null);
+        if (ST.getState() == 0) {
+            n.f0.accept(this, null); // "class"
+            String classname = n.f1.accept(this, null);
 
-        if (ST.enter(classname, null) != 0)
-            System.exit(1);
+            if (ST.enter(classname, null) != 0)
+                System.exit(1);
 
-        n.f2.accept(this, null); // "{"
-        n.f3.accept(this, classname); // variables
-        n.f4.accept(this, classname); // methods
-        n.f5.accept(this, null); // "}"
+            n.f2.accept(this, null); // "{"
+            n.f3.accept(this, classname); // variables
+            n.f4.accept(this, classname); // methods
+            n.f5.accept(this, null); // "}"
 
-        ST.print();
+            ST.print();
+        } else {
+
+        }
         return null;
     }
 
@@ -415,20 +419,23 @@ class MyVisitor extends GJDepthFirst<String, String> {
      */
     @Override
     public String visit(ClassExtendsDeclaration n, String argu) throws Exception {
-        n.f0.accept(this, null); // "class"
-        String classname = n.f1.accept(this, null);
-        n.f2.accept(this, null); // "extends"
-        String parent = n.f3.accept(this, null);
+        if (ST.getState() == 0) {
+            n.f0.accept(this, null); // "class"
+            String classname = n.f1.accept(this, null);
+            n.f2.accept(this, null); // "extends"
+            String parent = n.f3.accept(this, null);
 
-        if (ST.enter(classname, parent) != 2)
-            System.exit(1);
+            if (ST.enter(classname, parent) != 2)
+                System.exit(1);
 
-        n.f4.accept(this, null); // "{"
-        n.f5.accept(this, classname); // variables
-        n.f6.accept(this, classname); // methods
-        n.f7.accept(this, null); // "}"
+            n.f4.accept(this, null); // "{"
+            n.f5.accept(this, classname); // variables
+            n.f6.accept(this, classname); // methods
+            n.f7.accept(this, null); // "}"
 
-        ST.print();
+            ST.print();
+        } else {
+        }
         return null;
     }
 
@@ -437,39 +444,42 @@ class MyVisitor extends GJDepthFirst<String, String> {
      */
     @Override
     public String visit(VarDeclaration n, String argu) throws Exception {
-        String type = n.f0.accept(this, argu); // variable type
-        String name = n.f1.accept(this, argu); // variable name
+        if (ST.getState() == 0) {
+            String type = n.f0.accept(this, argu); // variable type
+            String name = n.f1.accept(this, argu); // variable name
 
-        String[] scope = argu.split("->");
-        System.out.println(argu);
-        for (String s : scope) {
-            System.out.println(s);
-        }
-
-        if (scope.length == 1) {
-            // the variables will be in a class
-            System.out.println("In class with name [" + argu + "] there is a variable: " + type + " " + name);
-            ST.insertAtribute(argu, name, type);
-        } else if (scope.length == 2) {
-            // the variables will be in a methods class
-            String classname = "";
-            String methname = "";
-            int count = 1;
-            for (int i = 0; i < scope.length; i++) {
-                if (count == 1)
-                    classname = scope[i];
-                else
-                    methname = scope[i];
-
-                if (scope[i].length() != 0)
-                    count = 2;
+            String[] scope = argu.split("->");
+            System.out.println(argu);
+            for (String s : scope) {
+                System.out.println(s);
             }
-            System.out.println("In class with name [" + classname + "] in method [" + methname
-                    + "] there is a variable: " + type + " " + name);
-            ST.insertBodyVariableToMethod(classname, methname, name, type);
-        }
 
-        n.f2.accept(this, argu); // ";"
+            if (scope.length == 1) {
+                // the variables will be in a class
+                System.out.println("In class with name [" + argu + "] there is a variable: " + type + " " + name);
+                ST.insertAtribute(argu, name, type);
+            } else if (scope.length == 2) {
+                // the variables will be in a methods class
+                String classname = "";
+                String methname = "";
+                int count = 1;
+                for (int i = 0; i < scope.length; i++) {
+                    if (count == 1)
+                        classname = scope[i];
+                    else
+                        methname = scope[i];
+
+                    if (scope[i].length() != 0)
+                        count = 2;
+                }
+                System.out.println("In class with name [" + classname + "] in method [" + methname
+                        + "] there is a variable: " + type + " " + name);
+                ST.insertBodyVariableToMethod(classname, methname, name, type);
+            }
+
+            n.f2.accept(this, argu); // ";"
+        } else {
+        }
         return null;
     }
 
@@ -480,44 +490,47 @@ class MyVisitor extends GJDepthFirst<String, String> {
      */
     @Override
     public String visit(MethodDeclaration n, String argu) throws Exception {
-        n.f0.accept(this, null); // "public"
-        String myType = n.f1.accept(this, null); // method type
-        String myName = n.f2.accept(this, null); // method name
-        n.f3.accept(this, null); // "("
+        if (ST.getState() == 0) {
+            n.f0.accept(this, null); // "public"
+            String myType = n.f1.accept(this, null); // method type
+            String myName = n.f2.accept(this, null); // method name
+            n.f3.accept(this, null); // "("
 
-        // the argument list
-        String argumentList = n.f4.present() ? n.f4.accept(this, null) : "";
+            // the argument list
+            String argumentList = n.f4.present() ? n.f4.accept(this, null) : "";
 
-        n.f5.accept(this, null); // ")"
-        n.f6.accept(this, null); // "{"
+            n.f5.accept(this, null); // ")"
+            n.f6.accept(this, null); // "{"
 
-        ST.insertMethod(argu, myName, myType);
+            ST.insertMethod(argu, myName, myType);
 
-        String[] arguments = argumentList.split(",");
-        for (String arg : arguments) {
-            String[] a = arg.split("\\s");
-            String aType = "";
-            String aName = "";
-            int count = 1;
-            for (int i = 0; i < a.length; i++) {
-                if (count == 1)
-                    aType = a[i];
-                else
-                    aName = a[i];
+            String[] arguments = argumentList.split(",");
+            for (String arg : arguments) {
+                String[] a = arg.split("\\s");
+                String aType = "";
+                String aName = "";
+                int count = 1;
+                for (int i = 0; i < a.length; i++) {
+                    if (count == 1)
+                        aType = a[i];
+                    else
+                        aName = a[i];
 
-                if (a[i].length() != 0)
-                    count = 2;
+                    if (a[i].length() != 0)
+                        count = 2;
+                }
+                if (count == 2)
+                    ST.insertArgumentToMethod(argu, myName, aName, aType);
             }
-            if (count == 2)
-                ST.insertArgumentToMethod(argu, myName, aName, aType);
-        }
 
-        n.f7.accept(this, argu + "->" + myName); // variables
-        n.f8.accept(this, argu + "->" + myName); // statements
-        n.f9.accept(this, null); // "return"
-        n.f10.accept(this, argu + "->" + myName); // expresion
-        n.f11.accept(this, null); // ";"
-        n.f12.accept(this, null); // "}"
+            n.f7.accept(this, argu + "->" + myName); // variables
+            n.f8.accept(this, argu + "->" + myName); // statements
+            n.f9.accept(this, null); // "return"
+            n.f10.accept(this, argu + "->" + myName); // expresion
+            n.f11.accept(this, null); // ";"
+            n.f12.accept(this, null); // "}"
+        } else {
+        }
         return null;
     }
 
