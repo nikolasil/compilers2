@@ -44,6 +44,19 @@ public class Main {
 
 class SymbolTable {
     Map<String, ST_Class> classes = new LinkedHashMap<String, ST_Class>();
+    int state = 0;
+
+    void makeState1() {
+        this.state = 1;
+    }
+
+    void makeState0() {
+        this.state = 0;
+    }
+
+    int getState() {
+        return this.state;
+    }
 
     int enter(String className, String classExtend) {
         if (this.getClass(className) == null) {
@@ -324,6 +337,17 @@ class MyVisitor extends GJDepthFirst<String, String> {
     static SymbolTable ST = new SymbolTable();
 
     /**
+     * f0 -> MainClass() f1 -> ( TypeDeclaration() )* f2 -> <EOF>
+     */
+    public String visit(Goal n, String argu) throws Exception {
+        n.f0.accept(this, argu);
+        n.f1.accept(this, argu);
+        n.f2.accept(this, argu);
+        ST.makeState1();
+        return null;
+    }
+
+    /**
      * f0 -> "class" f1 -> Identifier() f2 -> "{" f3 -> "public" f4 -> "static" f5
      * -> "void" f6 -> "main" f7 -> "(" f8 -> "String" f9 -> "[" f10 -> "]" f11 ->
      * Identifier() f12 -> ")" f13 -> "{" f14 -> ( VarDeclaration() )* f15 -> (
@@ -476,7 +500,6 @@ class MyVisitor extends GJDepthFirst<String, String> {
             String aName = "";
             int count = 1;
             for (int i = 0; i < a.length; i++) {
-                // System.out.println(a[i]);
                 if (count == 1)
                     aType = a[i];
                 else
@@ -505,9 +528,8 @@ class MyVisitor extends GJDepthFirst<String, String> {
     public String visit(FormalParameterList n, String argu) throws Exception {
         String ret = n.f0.accept(this, null);
 
-        if (n.f1 != null) {
+        if (n.f1 != null)
             ret += n.f1.accept(this, null);
-        }
 
         return ret;
     }
@@ -525,9 +547,8 @@ class MyVisitor extends GJDepthFirst<String, String> {
     @Override
     public String visit(FormalParameterTail n, String argu) throws Exception {
         String ret = "";
-        for (Node node : n.f0.nodes) {
+        for (Node node : n.f0.nodes)
             ret += ", " + node.accept(this, null);
-        }
 
         return ret;
     }
