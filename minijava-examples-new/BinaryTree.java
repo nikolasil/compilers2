@@ -1,35 +1,12 @@
 class BinaryTree {
 	public static void main(String[] a) {
-		int nikola2;
-		System.out.println(new BT().Start());
-	}
-}
-
-class test2 {
-	int b;
-
-	public int meth(test a) {
-		int nikola2;
-		nikola2 = new Tree();
-		return 1;
-	}
-}
-
-class test extends test2 {
-	int b;
-
-	public int meth(test a) {
-		int nikola2;
-		nikola2 = new Tree();
-		return 1;
+		System.out.println(5);
 	}
 }
 
 // This class invokes the methods to create a tree,
 // insert, delete and serach for elements on it
-class BT extends test {
-	int nikolas;
-	int nikola2;
+class BT {
 
 	public int Start() {
 		Tree root;
@@ -132,7 +109,8 @@ class Tree {
 	public boolean Compare(int num1, int num2) {
 		boolean ntb;
 		int nti;
-
+		int nikolas;
+		nikolas = 5;
 		ntb = false;
 		nti = num2 + 1;
 		if (num1 < num2)
@@ -331,26 +309,6 @@ class Tree {
 
 	// Print the elements of the tree
 	public boolean RecPrint(Tree node) {
-		boolean ntb;
-
-		if (node.GetHas_Left()) {
-			// auxtree01 = node.GetLeft() ;
-			// ntb = this.RecPrint(auxtree01);
-			ntb = this.RecPrint(node.GetLeft());
-		} else
-			ntb = true;
-		System.out.println(node.GetKey());
-		if (node.GetHas_Right()) {
-			// auxtree01 = node.GetRight() ;
-			// ntb = this.RecPrint(auxtree01);
-			ntb = this.RecPrint(node.GetRight());
-		} else
-			ntb = true;
-		return true;
-	}
-
-	public boolean nikolasssss(Tree node, int a) {
-		boolean nik15;
 		boolean ntb;
 
 		if (node.GetHas_Left()) {
