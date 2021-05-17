@@ -1,15 +1,27 @@
-# compilers2
+# NIKOLAOS ILIOPOULOS
+# 1115201800332
 
-MiniJava is OOP language with little feutures.
-Είναι ποιο απλή java στην ουσία.
+## SymbolTable Structure
 
-Parser: JavaCC τον έχουμε έτοιμο.
+```javascript
+class SymbolTable {
+    Map<String, ST_Class> classes; // holds all the symbol tables
+}
 
-JTB θα χρειαστούμε.
-Η γραμματική του MiniJava είναι LL(k) μαλλον k=3.
+class ST_Class {
+    String name;
+    ST_Class parent; // points to the parent else null
+    ST_Class child; // points to the child else null
 
-Σημασιολογικό έλεγχο:
+    Map<String, String> atributes;
+    Map<String, ST_Method> methods;
+}
 
-- Ταιργιάζουν οι τύποι?
-- Άμα εχει δηλωθεί δύο φορές η ίδια μεταβλητή στην ίδια συνάρτηση.
-- 
+class ST_Method {
+    String name;
+    String type;
+
+    Map<String, String> arguments;
+    Map<String, String> bodyVariables;
+}
+```
