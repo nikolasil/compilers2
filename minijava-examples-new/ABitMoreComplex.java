@@ -10,8 +10,4 @@ class X {
     k = 6 * 6;
     return k;
   }
-
-  public int some_int() {
-    return 10;
-  }
 }

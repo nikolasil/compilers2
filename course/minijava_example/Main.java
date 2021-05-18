@@ -8,45 +8,60 @@ import java.util.*;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        if (args.length != 1) {
-            System.err.println("Usage: java Main <inputFile>");
-            System.exit(1);
+        if (args.length < 1) {
+            System.err.println("Usage: java Main <inputFiles>");
+
         }
 
         FileInputStream fis = null;
-        try {
-            fis = new FileInputStream(args[0]);
-            MiniJavaParser parser = new MiniJavaParser(fis);
-
-            Goal root = parser.Goal();
-
-            System.err.println("Program parsed successfully.");
-
-            MyVisitor declarationST = new MyVisitor();
-            MyVisitor typeChecking = new MyVisitor();
-
-            root.accept(declarationST, null);
-            System.out.println("Type Checking Started");
-            root.accept(typeChecking, null);
-
-        } catch (ParseException ex) {
-            System.out.println(ex.getMessage());
-        } catch (FileNotFoundException ex) {
-            System.err.println(ex.getMessage());
-        } finally {
+        for (int i = 0; i < args.length; i++) {
             try {
-                if (fis != null)
-                    fis.close();
-            } catch (IOException ex) {
+                System.out.println("\n - - - - - Checking file: " + args[i] + " - - - - - \n");
+                fis = new FileInputStream(args[i]);
+                MiniJavaParser parser = new MiniJavaParser(fis);
+
+                Goal root = parser.Goal();
+
+                System.err.println("Program parsed successfully.");
+                SymbolTable st = new SymbolTable();
+                MyVisitor declarationST = new MyVisitor(st);
+                MyVisitor typeChecking = new MyVisitor(st);
+
+                root.accept(declarationST, null);
+                System.out.println("\nType Checking Started");
+                root.accept(typeChecking, null);
+            } catch (TypeCheckError ex) {
+                System.out.println(ex.getMessage());
+            } catch (ParseException ex) {
+                System.out.println(ex.getMessage());
+            } catch (FileNotFoundException ex) {
                 System.err.println(ex.getMessage());
+            } finally {
+                try {
+                    if (fis != null)
+                        fis.close();
+                } catch (IOException ex) {
+                    System.err.println(ex.getMessage());
+                }
             }
         }
     }
 }
 
+class TypeCheckError extends Exception {
+    public TypeCheckError(String message) {
+        super(message);
+    }
+}
+
 class SymbolTable {
-    Map<String, ST_Class> classes = new LinkedHashMap<String, ST_Class>();
-    int state = 0; // 0 = fill table , 1 = type check
+    Map<String, ST_Class> classes;
+    int state; // 0 = fill table , 1 = type check
+
+    SymbolTable() {
+        classes = new LinkedHashMap<String, ST_Class>();
+        state = 0;
+    }
 
     void setState(int s) {
         this.state = s;
@@ -129,7 +144,7 @@ class SymbolTable {
         return 3;
     }
 
-    int insertAtribute(String className, String atrName, String atrType) {
+    int insertAtribute(String className, String atrName, String atrType) throws Exception {
         if (this.getClass(className) != null) {
             this.getClass(className).addAtribute(atrName, atrType);
             return 0;
@@ -138,7 +153,7 @@ class SymbolTable {
         return 1;
     }
 
-    int insertMethod(String className, String methName, String methType) {
+    int insertMethod(String className, String methName, String methType) throws Exception {
         if (this.getClass(className) != null) {
             this.getClass(className).addMethod(methName, methType);
             return 0;
@@ -147,7 +162,7 @@ class SymbolTable {
         return 1;
     }
 
-    int insertArgumentToMethod(String className, String methName, String argName, String argType) {
+    int insertArgumentToMethod(String className, String methName, String argName, String argType) throws Exception {
         if (this.getClass(className) != null) {
             if (this.getClass(className).getMethod(methName) != null) {
                 this.getClass(className).getMethod(methName).addArgument(argName, argType);
@@ -157,7 +172,7 @@ class SymbolTable {
         return 1;
     }
 
-    int insertBodyVariableToMethod(String className, String methName, String varName, String varType) {
+    int insertBodyVariableToMethod(String className, String methName, String varName, String varType) throws Exception {
         if (this.getClass(className) != null) {
             if (this.getClass(className).getMethod(methName) != null) {
                 this.getClass(className).getMethod(methName).addBodyVariable(varName, varType);
@@ -271,8 +286,8 @@ class ST_Class {
     ST_Class parent;
     ST_Class child;
 
-    Map<String, String> atributes = new LinkedHashMap<String, String>();
-    Map<String, ST_Method> methods = new LinkedHashMap<String, ST_Method>();
+    Map<String, String> atributes;
+    Map<String, ST_Method> methods;
 
     ST_Class(String n, ST_Class p) {
         this.name = n;
@@ -280,6 +295,8 @@ class ST_Class {
         this.child = null;
         if (parent != null)
             parent.setChild(this);
+        atributes = new LinkedHashMap<String, String>();
+        methods = new LinkedHashMap<String, ST_Method>();
         this.atributes.put("this", this.name);
     }
 
@@ -319,24 +336,22 @@ class ST_Class {
         return this.methods;
     }
 
-    int addAtribute(String atrName, String atrType) {
+    int addAtribute(String atrName, String atrType) throws Exception {
         if (this.getAtribute(atrName) == "") {
             this.atributes.put(atrName, atrType);
             return 0;
         }
-        System.out.println("[ERROR] in class atribute: " + this.name + "." + atrName + " -- double declaration --");
-        System.exit(1);
-        return 1;
+        throw new TypeCheckError(
+                "[ERROR] in class atribute: " + this.name + "." + atrName + " -- double declaration --");
     }
 
-    int addMethod(String methName, String methType) {
+    int addMethod(String methName, String methType) throws Exception {
         if (this.getMethod(methName) == null) {
             this.methods.put(methName, new ST_Method(methName, methType));
             return 0;
         }
-        System.out.println("[ERROR] in class method: " + this.name + "." + methName + " -- double declaration --");
-        System.exit(1);
-        return 1;
+        throw new TypeCheckError(
+                "[ERROR] in class method: " + this.name + "." + methName + " -- double declaration --");
     }
 
     void print() {
@@ -373,14 +388,14 @@ class ST_Method {
     String name;
     String type;
 
-    Map<String, String> arguments = new LinkedHashMap<String, String>();
-    Map<String, String> bodyVariables = new LinkedHashMap<String, String>();
+    Map<String, String> arguments;
+    Map<String, String> bodyVariables;
 
     ST_Method(String n, String t) {
-        this.arguments.clear();
-        this.bodyVariables.clear();
         this.name = n;
         this.type = t;
+        this.arguments = new LinkedHashMap<String, String>();
+        this.bodyVariables = new LinkedHashMap<String, String>();
     }
 
     boolean compareArgs(SymbolTable ST, LinkedList<String> args) {
@@ -455,27 +470,25 @@ class ST_Method {
         return "";
     }
 
-    int addArgument(String argName, String argType) {
+    int addArgument(String argName, String argType) throws Exception {
         if (this.getArgument(argName) == "") {
             this.arguments.put(argName, argType);
             return 0;
         }
-        System.out.println("[ERROR] in method's arguments: " + this.name + "." + argName + " -- double declaration --");
-        System.exit(1);
-        return 1;
+        throw new TypeCheckError(
+                "[ERROR] in method's arguments: " + this.name + "." + argName + " -- double declaration --");
     }
 
-    int addBodyVariable(String varName, String varType) {
+    int addBodyVariable(String varName, String varType) throws Exception {
         if (this.getBodyVariable(varName) == "") {
             if (this.getArgument(varName) == "") {
                 this.bodyVariables.put(varName, varType);
                 return 0;
             }
         }
-        System.out.println(
+        throw new TypeCheckError(
                 "[ERROR] in method's bodyVariables : " + this.name + "." + varName + " -- double declaration --");
-        System.exit(1);
-        return 1;
+
     }
 
     void print() {
@@ -494,23 +507,25 @@ class ST_Method {
 }
 
 class MyVisitor extends GJDepthFirst<String, String> {
-    static SymbolTable ST = new SymbolTable();
+    SymbolTable ST;
 
-    /**
-     * f0 -> MainClass() f1 -> ( TypeDeclaration() )* f2 -> <EOF>
-     */
+    MyVisitor(SymbolTable S) {
+        ST = S;
+    }
+
     public String visit(Goal n, String argu) throws Exception {
-
+        // System.out.println("state is " + ST.getState());
         n.f0.accept(this, argu);
         n.f1.accept(this, argu);
         n.f2.accept(this, argu);
+
         if (ST.getState() == 1) {
-            System.out.println("Type Checking Ended Successfully");
+            System.out.println("Type Checking Ended Successfully\n");
             ST.printOffset();
         }
         ST.setState(1);
-
         return null;
+
     }
 
     /**
@@ -535,10 +550,9 @@ class MyVisitor extends GJDepthFirst<String, String> {
             n.f9.accept(this, classname); // "["
             n.f10.accept(this, classname); // "]"
 
-            if (ST.enter(classname, null) != 0) {
-                System.out.println("[ERROR] Class: " + classname + " double declaration");
-                System.exit(1);
-            }
+            if (ST.enter(classname, null) != 0)
+                throw new TypeCheckError("[ERROR] Class: " + classname + " double declaration");
+
             String argumentName = n.f11.accept(this, classname); // argument name
 
             ST.insertMethod(classname, "main", "void"); // insert the main method
@@ -592,10 +606,9 @@ class MyVisitor extends GJDepthFirst<String, String> {
         if (ST.getState() == 0) {
             n.f0.accept(this, null); // "class"
             String classname = n.f1.accept(this, null);
-            if (ST.enter(classname, null) != 0) {
-                System.out.println("[ERROR] Class: " + classname + " double declaration");
-                System.exit(1);
-            }
+            if (ST.enter(classname, null) != 0)
+                throw new TypeCheckError("[ERROR] Class: " + classname + " double declaration");
+
             n.f2.accept(this, classname); // "{"
             n.f3.accept(this, classname); // variables
             n.f4.accept(this, classname); // methods
@@ -626,10 +639,9 @@ class MyVisitor extends GJDepthFirst<String, String> {
             n.f2.accept(this, classname); // "extends"
             String parent = n.f3.accept(this, classname);
 
-            if (ST.enter(classname, parent) != 2) {
-                System.out.println("[ERROR] Class: " + classname + " double declaration");
-                System.exit(1);
-            }
+            if (ST.enter(classname, parent) != 2)
+                throw new TypeCheckError("[ERROR] Class: " + classname + " double declaration");
+
             n.f4.accept(this, classname); // "{"
             n.f5.accept(this, classname); // variables
             n.f6.accept(this, classname); // methods
@@ -693,12 +705,10 @@ class MyVisitor extends GJDepthFirst<String, String> {
             String name = n.f1.accept(this, argu); // argument name
             n.f2.accept(this, argu); // ";"
             // System.out.println(type + " " + name);
-            if (!type.equals("int") && !type.equals("boolean") && !type.equals("int[]")) {
-                if (ST.getClass(type) == null) {
-                    System.out.println("[ERROR] " + type + " does not name a type");
-                    System.exit(1);
-                }
-            }
+            if (!type.equals("int") && !type.equals("boolean") && !type.equals("int[]"))
+                if (ST.getClass(type) == null)
+                    throw new TypeCheckError("[ERROR] " + type + " does not name a type");
+
             // System.out.println("type:" + type + " exists");
         }
         return null;
@@ -758,12 +768,10 @@ class MyVisitor extends GJDepthFirst<String, String> {
 
             String myName = n.f2.accept(this, argu); // method name
 
-            if (!myType.equals("int") && !myType.equals("String") && !myType.equals("boolean")) {
-                if (ST.getClass(myType) == null) {
-                    System.out.println("[ERROR] " + myType + " does not name a type");
-                    System.exit(1);
-                }
-            }
+            if (!myType.equals("int") && !myType.equals("String") && !myType.equals("boolean"))
+                if (ST.getClass(myType) == null)
+                    throw new TypeCheckError("[ERROR] " + myType + " does not name a type");
+
             n.f3.accept(this, argu); // "("
             String argumentList = n.f4.present() ? n.f4.accept(this, argu) : "";
 
@@ -783,17 +791,13 @@ class MyVisitor extends GJDepthFirst<String, String> {
                         count = 2;
                 }
                 if (count == 2)
-                    if (!aType.equals("int") && !aType.equals("int[]") && !aType.equals("boolean")) {
-                        if (ST.getClass(aType) == null) {
-                            System.out.println("[ERROR] " + aType + " does not name a type");
-                            System.exit(1);
-                        }
-                    }
+                    if (!aType.equals("int") && !aType.equals("int[]") && !aType.equals("boolean"))
+                        if (ST.getClass(aType) == null)
+                            throw new TypeCheckError("[ERROR] " + aType + " does not name a type");
+
             }
-            if (ST.lookupSameMethodInParents(ST, argu, myName) == 0) {
-                System.out.println("[ERROR] " + argu + "." + myName + " Overridden method does not match");
-                System.exit(1);
-            }
+            if (ST.lookupSameMethodInParents(ST, argu, myName) == 0)
+                throw new TypeCheckError("[ERROR] " + argu + "." + myName + " Overridden method does not match");
 
             n.f5.accept(this, argu + "->" + myName); // ")"
             n.f6.accept(this, argu + "->" + myName); // "{"
@@ -811,11 +815,10 @@ class MyVisitor extends GJDepthFirst<String, String> {
             }
             // System.out.println("rType " + rType + " r " + r);
             if (!myType.equals(r)) {
-                if (!myType.equals(rType)) {
-                    System.out.println("[ERROR] " + argu + "." + myName + " Return type is " + myType
+                if (!myType.equals(rType))
+                    throw new TypeCheckError("[ERROR] " + argu + "." + myName + " Return type is " + myType
                             + " but it is returned " + rType + r);
-                    System.exit(1);
-                }
+
             }
             // System.out.println(argu + "." + myName + ":Correct return type");
             n.f11.accept(this, argu + "->" + myName); // ";"
@@ -867,10 +870,9 @@ class MyVisitor extends GJDepthFirst<String, String> {
 
             // System.out.println(type + " " + name);
             if (!type.equals("int") && !type.equals("boolean") && !type.equals("int[]")) {
-                if (ST.getClass(type) == null) {
-                    System.out.println("[ERROR] " + type + " does not name a type");
-                    System.exit(1);
-                }
+                if (ST.getClass(type) == null)
+                    throw new TypeCheckError("[ERROR] " + type + " does not name a type");
+
             }
             // System.out.println("type:" + type + " exists");
             return type + " " + name;
@@ -908,10 +910,9 @@ class MyVisitor extends GJDepthFirst<String, String> {
                 exprType = exprCheck[1];
             }
             if (!exprType.equals("int")) {
-                if (!expr.equals("int")) {
-                    System.out.println("[ERROR] Print statement can print only integers not " + exprType);
-                    System.exit(1);
-                }
+                if (!expr.equals("int"))
+                    throw new TypeCheckError("[ERROR] Print statement can print only integers not " + exprType);
+
             }
             n.f3.accept(this, argu);
             n.f4.accept(this, argu);
@@ -953,10 +954,9 @@ class MyVisitor extends GJDepthFirst<String, String> {
                 exprType = exprCheck[1];
             }
             if (!exprType.equals("int[]")) {
-                if (!expr.equals("int[]")) {
-                    System.out.println("[ERROR] Print statement can print only integers not " + exprType);
-                    System.exit(1);
-                }
+                if (!expr.equals("int[]"))
+                    throw new TypeCheckError("[ERROR] Print statement can print only integers not " + exprType);
+
             }
             n.f1.accept(this, argu);
             n.f2.accept(this, argu);
@@ -1055,10 +1055,9 @@ class MyVisitor extends GJDepthFirst<String, String> {
                     count = 2;
             }
             String r1 = ST.lookup(classname, methname, varName1);
-            if (r1 == "") {
-                System.out.println("[ERROR] " + varName1 + " has not been declared");
-                System.exit(1);
-            }
+            if (r1 == "")
+                throw new TypeCheckError("[ERROR] " + varName1 + " has not been declared");
+
             // System.out.println("var: " + varName1 + " has been declared with type " +
             // r1);
 
@@ -1067,33 +1066,32 @@ class MyVisitor extends GJDepthFirst<String, String> {
             String[] checkForAllocation = var2.split("\\s");
 
             if (checkForAllocation[0].equals("return")) {
-                if (!r1.equals(checkForAllocation[1])) {
-                    System.out.println("[ERROR] Assignment with type " + checkForAllocation[1] + " in variable "
+                if (!r1.equals(checkForAllocation[1]))
+                    throw new TypeCheckError("[ERROR] Assignment with type " + checkForAllocation[1] + " in variable "
                             + varName1 + " which is type of " + r1);
-                    System.exit(1);
-                }
+
                 // System.out.println("Assignment OK");
             } else {
                 // System.out.println("var2 = " + var2);
                 String r2 = ST.lookup(classname, methname, var2);
                 // System.out.println("varName1: " + varName1 + " r1: " + r1 + " var2: " + var2
                 // + " r2: " + r2);
-                if (r1.equals("int") && !var2.equals("int") && !r2.equals("int")) {
-                    System.out.println(
-                            "[ERROR] " + varName1 + " is type of int , cannot be assinged with " + r2 + " " + var2);
-                    System.exit(1);
-                } else if (r1.equals("boolean") && !var2.equals("boolean") && !r2.equals("boolean")) {
-                    System.out.println(
-                            "[ERROR] " + varName1 + " is type of boolean , cannot be assinged with " + r2 + " " + var2);
-                    System.exit(1);
-                } else if (r1.equals("int[]") && !var2.equals("int[]") && !r2.equals("int[]")) {
-                    System.out.println(
-                            "[ERROR] " + varName1 + " is type of int[] , cannot be assinged with " + r2 + " " + var2);
-                    System.exit(1);
-                } else if (r2 == "" && !var2.equals("int") && !var2.equals("boolean") && !var2.equals("int[]")) {
-                    System.out.println("[ERROR] " + var2 + " has not been declared");
-                    System.exit(1);
-                } else if (!r2.equals(r1) && !r2.equals("")) {
+                if (r1.equals("int") && !var2.equals("int") && !r2.equals("int"))
+                    throw new TypeCheckError(
+                            "[ERROR] " + varName1 + " is type of int,cannot be assinged with " + r2 + " " + var2);
+
+                else if (r1.equals("boolean") && !var2.equals("boolean") && !r2.equals("boolean"))
+                    throw new TypeCheckError(
+                            "[ERROR] " + varName1 + " is type of boolean,cannot be assinged with " + r2 + " " + var2);
+
+                else if (r1.equals("int[]") && !var2.equals("int[]") && !r2.equals("int[]"))
+                    throw new TypeCheckError(
+                            "[ERROR] " + varName1 + " is type of int[],cannot be assinged with " + r2 + " " + var2);
+
+                else if (r2 == "" && !var2.equals("int") && !var2.equals("boolean") && !var2.equals("int[]"))
+                    throw new TypeCheckError("[ERROR] " + var2 + " has not been declared");
+
+                else if (!r2.equals(r1) && !r2.equals("")) {
                     ST_Class temp = ST.getClass(r2);
                     boolean flag = false;
                     while (temp != null) {
@@ -1106,11 +1104,10 @@ class MyVisitor extends GJDepthFirst<String, String> {
                             break;
                         }
                     }
-                    if (!flag) {
-                        System.out.println(
+                    if (!flag)
+                        throw new TypeCheckError(
                                 "[ERROR] " + varName1 + " is type of " + r1 + " , cannot be assinged with an " + r2);
-                        System.exit(1);
-                    }
+
                 }
                 // System.out.println("Assignment OK");
                 n.f3.accept(this, argu);
@@ -1147,29 +1144,24 @@ class MyVisitor extends GJDepthFirst<String, String> {
                     count = 2;
             }
             String arrayType = ST.lookup(classname, methname, array);
-            if (!arrayType.equals("int[]")) {
-                System.out.println("[ERROR] " + array + " is not of type int[]");
-                System.exit(1);
-            }
+            if (!arrayType.equals("int[]"))
+                throw new TypeCheckError("[ERROR] " + array + " is not of type int[]");
+
             n.f1.accept(this, argu);
             String pos = n.f2.accept(this, argu);
             String posType = ST.lookup(classname, methname, pos);
             // System.out.println(pos);
             if (!pos.equals("int") && !posType.equals("int") && !pos.equals("return int")
-                    && !posType.equals("return int")) {
-                System.out.println("[ERROR] In array " + array + " assignment position must be type of int");
-                System.exit(1);
-            }
+                    && !posType.equals("return int"))
+                throw new TypeCheckError("[ERROR] In array " + array + " assignment position must be type of int");
 
             n.f3.accept(this, argu);
             n.f4.accept(this, argu);
             String assignment = n.f5.accept(this, argu);
             String assignmentType = ST.lookup(classname, methname, assignment);
             if (!assignmentType.equals("int") && !assignment.equals("int") && !assignmentType.equals("return int")
-                    && !assignment.equals("return int")) {
-                System.out.println("[ERROR] In array " + array + " assignment must be only int values");
-                System.exit(1);
-            }
+                    && !assignment.equals("return int"))
+                throw new TypeCheckError("[ERROR] In array " + array + " assignment must be only int values");
 
             n.f6.accept(this, argu);
             return null;
@@ -1206,19 +1198,17 @@ class MyVisitor extends GJDepthFirst<String, String> {
                     count = 2;
             }
             String arrayType = ST.lookup(classname, methname, array);
-            if (!arrayType.equals("int[]")) {
-                System.out.println("[ERROR] " + array + " is not of type int[]");
-                System.exit(1);
-            }
+            if (!arrayType.equals("int[]"))
+                throw new TypeCheckError("[ERROR] " + array + " is not of type int[]");
+
             n.f1.accept(this, argu);
             String pos = n.f2.accept(this, argu);
             String posType = ST.lookup(classname, methname, pos);
             // System.out.println(pos + " " + posType);
             if (!pos.equals("int") && !posType.equals("int") && !pos.equals("return int")
-                    && !posType.equals("return int")) {
-                System.out.println("[ERROR] In array " + array + " lookup position must be type of int");
-                System.exit(1);
-            }
+                    && !posType.equals("return int"))
+                throw new TypeCheckError("[ERROR] In array " + array + " lookup position must be type of int");
+
             n.f3.accept(this, argu);
             return "return int";
         } else {
@@ -1255,13 +1245,11 @@ class MyVisitor extends GJDepthFirst<String, String> {
             String ifExpr = n.f2.accept(this, argu);
             String t = ST.lookup(classname, methname, ifExpr);
             // System.out.println(t + " " + ifExpr);
-            if (!t.equals("boolean") && !ifExpr.equals("return boolean") && !t.equals("return boolean")) {
+            if (!t.equals("boolean") && !ifExpr.equals("return boolean") && !t.equals("return boolean"))
                 // System.out.println(t + " " + ifExpr);
-                System.out.println(
+                throw new TypeCheckError(
                         "[ERROR] If statement must have as condition boolean or messageSend that returns boolean");
-                System.exit(1);
 
-            }
             n.f3.accept(this, argu);
             n.f4.accept(this, argu);
             // System.out.println("If else");
@@ -1305,12 +1293,10 @@ class MyVisitor extends GJDepthFirst<String, String> {
             }
             String whileExpr = n.f2.accept(this, argu);
             String t = ST.lookup(classname, methname, whileExpr);
-            if (!t.equals("boolean") && !whileExpr.equals("return boolean") && !t.equals("return boolean")) {
-                System.out.println(
+            if (!t.equals("boolean") && !whileExpr.equals("return boolean") && !t.equals("return boolean"))
+                throw new TypeCheckError(
                         "[ERROR] While statement must have as condition boolean or messageSend that returns boolean");
-                System.exit(1);
 
-            }
             n.f3.accept(this, argu);
             n.f4.accept(this, argu);
             // System.out.println("WHILE OK");
@@ -1368,24 +1354,20 @@ class MyVisitor extends GJDepthFirst<String, String> {
             String objectType = ST.lookup(classname, methname, object);
             // System.out.println(object);
             String[] check = object.split("\\s");
-            if (check[0].equals("return")) {
+            if (check[0].equals("return"))
                 objectType = check[1];
-            } else {
-                if (objectType.equals("")) {
-                    System.out.println("[ERROR] " + object + " has not been declared");
-                    System.exit(1);
-                }
-            }
+            else if (objectType.equals(""))
+                throw new TypeCheckError("[ERROR] " + object + " has not been declared");
+
             // System.out.println("object " + object + " is type of " + objectType);
             n.f1.accept(this, argu);
 
             String func = n.f2.accept(this, argu);
             ST_Method funcObj = ST.lookupMethod(objectType, func);
-            if (funcObj == null) {
-                System.out.println(
+            if (funcObj == null)
+                throw new TypeCheckError(
                         "[ERROR] Method " + func + " is not a member of the class " + objectType + " and his parents");
-                System.exit(1);
-            }
+
             String funcType = funcObj.getType();
 
             // System.out.println(func);
@@ -1404,11 +1386,10 @@ class MyVisitor extends GJDepthFirst<String, String> {
                             args.add(liNoReturn[1]);
                         } else {
                             String t = ST.lookup(classname, methname, li);
-                            if (t.equals("")) {
-                                System.out.println(
+                            if (t.equals(""))
+                                throw new TypeCheckError(
                                         "[ERROR] MessageSend " + func + " argument " + li + " has not been declared");
-                                System.exit(1);
-                            }
+
                             args.add(t);
                         }
                     } else {
@@ -1420,19 +1401,17 @@ class MyVisitor extends GJDepthFirst<String, String> {
                         }
                     }
                 }
-                if (!funcObj.compareArgs(ST, args)) {
-                    System.out.println("[ERROR] MessageSend " + func + " arguments are not the same");
-                    System.exit(1);
-                }
+                if (!funcObj.compareArgs(ST, args))
+                    throw new TypeCheckError("[ERROR] MessageSend " + func + " arguments are not the same");
+
                 // System.out.println("true");
                 n.f5.accept(this, argu);
                 return "return " + funcType;
             } else {
                 // System.out.println("list empty");
-                if (!funcObj.compareArgs(ST, args)) {
-                    System.out.println("[ERROR] MessageSend " + func + " arguments are not the same");
-                    System.exit(1);
-                }
+                if (!funcObj.compareArgs(ST, args))
+                    throw new TypeCheckError("[ERROR] MessageSend " + func + " arguments are not the same");
+
                 // System.out.println("true");
                 n.f5.accept(this, argu);
                 return "return " + funcType;
@@ -1515,12 +1494,9 @@ class MyVisitor extends GJDepthFirst<String, String> {
             String[] check = expr.split("\\s");
             if (check[0].equals("return")) {
                 exprType = check[1];
-            } else {
-                if (exprType.equals("")) {
-                    System.out.println("[ERROR] " + expr + " has not been declared");
-                    System.exit(1);
-                }
-            }
+            } else if (exprType.equals(""))
+                throw new TypeCheckError("[ERROR] " + expr + " has not been declared");
+
             // System.out.println("expr " + expr + " is type of " + exprType);
 
             // System.out.println("not " + exprType);
@@ -1579,18 +1555,15 @@ class MyVisitor extends GJDepthFirst<String, String> {
                 right = ST.lookup(classname, methname, r);
             }
 
-            if (!left.equals("int")) {
-                System.out.println("[ERROR] PLUS must have int");
-                System.exit(1);
-            }
-            if (!right.equals("int")) {
-                System.out.println("[ERROR] PLUS must have int");
-                System.exit(1);
-            }
-            if (!left.equals(right)) {
-                System.out.println("[ERROR] PLUS must have the same type in each side");
-                System.exit(1);
-            }
+            if (!left.equals("int"))
+                throw new TypeCheckError("[ERROR] PLUS must have int");
+
+            if (!right.equals("int"))
+                throw new TypeCheckError("[ERROR] PLUS must have int");
+
+            if (!left.equals(right))
+                throw new TypeCheckError("[ERROR] PLUS must have the same type in each side");
+
             return "return int";
 
         } else {
@@ -1648,18 +1621,15 @@ class MyVisitor extends GJDepthFirst<String, String> {
                 right = ST.lookup(classname, methname, r);
             }
 
-            if (!left.equals("int")) {
-                System.out.println("[ERROR] MINUS must have int1");
-                System.exit(1);
-            }
-            if (!right.equals("int")) {
-                System.out.println("[ERROR] MINUS must have int2");
-                System.exit(1);
-            }
-            if (!left.equals(right)) {
-                System.out.println("[ERROR] MINUS must have the same type in each side");
-                System.exit(1);
-            }
+            if (!left.equals("int"))
+                throw new TypeCheckError("[ERROR] MINUS must have int1");
+
+            if (!right.equals("int"))
+                throw new TypeCheckError("[ERROR] MINUS must have int2");
+
+            if (!left.equals(right))
+                throw new TypeCheckError("[ERROR] MINUS must have the same type in each side");
+
             return "return int";
 
         } else {
@@ -1718,18 +1688,15 @@ class MyVisitor extends GJDepthFirst<String, String> {
                 right = ST.lookup(classname, methname, r);
             }
 
-            if (!left.equals("int")) {
-                System.out.println("[ERROR] Times is allowed only in int types");
-                System.exit(1);
-            }
-            if (!right.equals("int")) {
-                System.out.println("[ERROR] Times is allowed only in int types");
-                System.exit(1);
-            }
-            if (!left.equals(right)) {
-                System.out.println("[ERROR] Times is allowed only in int types");
-                System.exit(1);
-            }
+            if (!left.equals("int"))
+                throw new TypeCheckError("[ERROR] Times is allowed only in int types");
+
+            if (!right.equals("int"))
+                throw new TypeCheckError("[ERROR] Times is allowed only in int types");
+
+            if (!left.equals(right))
+                throw new TypeCheckError("[ERROR] Times is allowed only in int types");
+
             return "return int";
 
         } else {
@@ -1810,10 +1777,9 @@ class MyVisitor extends GJDepthFirst<String, String> {
             String posType = ST.lookup(classname, methname, pos);
             // System.out.println(pos + " " + posType);
             if (!pos.equals("int") && !posType.equals("int") && !pos.equals("return int")
-                    && !posType.equals("return int")) {
-                System.out.println("[ERROR] In array ArrayAllocationExpression size must be type of int");
-                System.exit(1);
-            }
+                    && !posType.equals("return int"))
+                throw new TypeCheckError("[ERROR] In array ArrayAllocationExpression size must be type of int");
+
             // System.out.println(pos);
             n.f4.accept(this, argu);
             return "return int[]";
@@ -1850,7 +1816,7 @@ class MyVisitor extends GJDepthFirst<String, String> {
                     count = 2;
             }
             if (ST.getClass(id) == null)
-                System.out.println("[ERROR] Allocation type " + id + " didnt found");
+                throw new TypeCheckError("[ERROR] Allocation type " + id + " didnt found");
 
             n.f2.accept(this, argu);
             n.f3.accept(this, argu);
