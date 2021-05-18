@@ -1,7 +1,7 @@
 # NIKOLAOS ILIOPOULOS
 # 1115201800332
-
-## SymbolTable Structure
+## Second Exercise Compilers
+### SymbolTable Structure
 
 ```javascript
 class SymbolTable {
@@ -24,7 +24,7 @@ class ST_Method {
     String name; // the name of the method
     String type; // the return type of the method
 
-    Map<String, String> arguments;      // the arguments of the class
+    Map<String, String> arguments; // the arguments of the class
     // key = argument name , value = argument type
     Map<String, String> bodyVariables; // the bodyVariables of the class
     // key = variable name , value = variable type
